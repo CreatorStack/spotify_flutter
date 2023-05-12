@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'package:dio/dio.dart';
+
 import 'package:flutter_web_auth/flutter_web_auth.dart';
 import 'package:pkce/pkce.dart';
 import 'package:spotify_flutter/src/core/api/api_client.dart';
@@ -12,14 +12,13 @@ class AuthService {
   final _apiClient = ApiClient.instance;
   final _storageService = StorageService();
 
-  Future<ApiResult<bool>> authorize({
-    required String redirectUri,
-    required String clientId,
-    String state = 'HappyBaby247',
-    required String callbackUrlScheme,
-    required String secretKey,
-    String? scope
-  }) async {
+  Future<ApiResult<bool>> authorize(
+      {required String redirectUri,
+      required String clientId,
+      String state = 'HappyBaby247',
+      required String callbackUrlScheme,
+      required String secretKey,
+      String? scope}) async {
     final pkcePair = PkcePair.generate();
 
     final codeChallenge = pkcePair.codeChallenge.replaceAll('=', '');
@@ -32,7 +31,7 @@ class AuthService {
       'state': state,
       'code_challenge_method': 'S256',
       'code_challenge': codeChallenge,
-      if(scope != null) 'scope': scope
+      if (scope != null) 'scope': scope
     });
 
     try {
@@ -59,8 +58,50 @@ class AuthService {
     } on Exception {
       return const ApiResult.failure(error: NetworkExceptions.unexpectedError());
     }
-    return ApiResult.failure(error: NetworkExceptions.unexpectedError());
+    return const ApiResult.failure(error: NetworkExceptions.unexpectedError());
+  }
 
+  Future<ApiResult<String>> getAuthToken(
+      {required String redirectUri,
+      required String clientId,
+      String state = 'HappyBaby247',
+      required String callbackUrlScheme,
+      required String secretKey,
+      String? scope}) async {
+    final pkcePair = PkcePair.generate();
+
+    final codeChallenge = pkcePair.codeChallenge.replaceAll('=', '');
+    final codeVerifier = pkcePair.codeVerifier;
+
+    final url = Uri.https('accounts.spotify.com', '/authorize', {
+      'response_type': 'code',
+      'client_id': clientId,
+      'redirect_uri': redirectUri,
+      'state': state,
+      'code_challenge_method': 'S256',
+      'code_challenge': codeChallenge,
+      if (scope != null) 'scope': scope
+    });
+
+    try {
+      final result = await FlutterWebAuth.authenticate(
+        url: url.toString(),
+        callbackUrlScheme: callbackUrlScheme,
+      );
+
+      final returnedState = Uri.parse(result).queryParameters['state'];
+
+      if (state == returnedState) {
+        final code = Uri.parse(result).queryParameters['code'];
+
+        if (code != null) {
+          return ApiResult<String>.success(data: code);
+        }
+      }
+    } on Exception {
+      return const ApiResult.failure(error: NetworkExceptions.unexpectedError());
+    }
+    return const ApiResult.failure(error: NetworkExceptions.unexpectedError());
   }
 
   Future<ApiResult<bool>> _getToken({
@@ -97,10 +138,9 @@ class AuthService {
     late ApiResult<bool> result;
 
     response.when(success: (success) {
-
-       result =  ApiResult.success(data: success.statusCode == 200);
-       _storageService.saveToken(accessToken: success.data['access_token'], refreshToken: success.data['refresh_token']);
-       _storageService.saveClientId(clientId);
+      result = ApiResult.success(data: success.statusCode == 200);
+      _storageService.saveToken(accessToken: success.data['access_token'], refreshToken: success.data['refresh_token']);
+      _storageService.saveClientId(clientId);
     }, failure: (failure) {
       result = ApiResult.failure(error: failure);
     });
