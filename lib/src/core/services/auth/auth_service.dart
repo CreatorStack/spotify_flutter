@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:flutter_web_auth/flutter_web_auth.dart';
+import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
 import 'package:pkce/pkce.dart';
 import 'package:spotify_flutter/src/core/api/api_client.dart';
 import 'package:spotify_flutter/src/core/api/api_result.dart';
@@ -35,7 +35,7 @@ class AuthService {
     });
 
     try {
-      final result = await FlutterWebAuth.authenticate(
+      final result = await FlutterWebAuth2.authenticate(
         url: url.toString(),
         callbackUrlScheme: callbackUrlScheme,
       );
@@ -68,23 +68,17 @@ class AuthService {
       required String callbackUrlScheme,
       required String secretKey,
       String? scope}) async {
-    final pkcePair = PkcePair.generate();
-
-    final codeChallenge = pkcePair.codeChallenge.replaceAll('=', '');
-    final codeVerifier = pkcePair.codeVerifier;
 
     final url = Uri.https('accounts.spotify.com', '/authorize', {
       'response_type': 'code',
       'client_id': clientId,
       'redirect_uri': redirectUri,
       'state': state,
-      'code_challenge_method': 'S256',
-      'code_challenge': codeChallenge,
       if (scope != null) 'scope': scope
     });
 
     try {
-      final result = await FlutterWebAuth.authenticate(
+      final result = await FlutterWebAuth2.authenticate(
         url: url.toString(),
         callbackUrlScheme: callbackUrlScheme,
       );
@@ -98,7 +92,7 @@ class AuthService {
           return ApiResult<String>.success(data: code);
         }
       }
-    } on Exception {
+    } on Exception catch (e) {
       return const ApiResult.failure(error: NetworkExceptions.unexpectedError());
     }
     return const ApiResult.failure(error: NetworkExceptions.unexpectedError());
